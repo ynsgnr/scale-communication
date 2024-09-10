@@ -21,6 +21,8 @@ class CrenotGofitS2:
             return False
             
         logging.info(f"Connection to scale '{name}' established")
+        await self.get_device_information()
+        await self.print_services()
 
     ###
     # connect()
@@ -55,6 +57,40 @@ class CrenotGofitS2:
         except Exception as e:
             logging.error("Connect failed with exception", e)
         return False
+
+    ###
+    # get_device_information()
+    #  - read available device information fields and log its values
+    ###
+    async def get_device_information(self):
+
+        logging.info("Gathering device information")
+        device_info = { "system id"    : "2A23",
+                        "model number" : "2A24",
+                        "serial number": "2A25",
+                        "fw revision"  : "2A26",
+                        "hw revision"  : "2A27",
+                        "sw revision"  : "2A28",
+                        "manufacturer" : "2A29" }
+                    
+        for type, uuid in device_info.items():
+            try:
+                value = await self.client.read_gatt_char(uuid)
+                logging.info(f" - {type: <16s}: '{value.decode("utf-8", "backslashreplace")}'")
+            except Exception as e:
+                logging.error(f" - {type: <16s}: failed")
+
+    ###
+    # print_services()
+    #  - gathers and prints information about available services and characteristics
+    ###
+    async def print_services(self):
+        
+        logging.info("Gathering service information")
+        for s in self.client.services:
+            logging.info(f" - {s.uuid: <36s}: {s.description}")
+
+
 
 
 
