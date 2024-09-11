@@ -35,7 +35,7 @@ class CrenotGofitS2:
         logging.info("Waiting for weight to stabilize")
         while not self.is_weight_stable:
             logging.debug(f"weight:{self.weight}")
-            await self.get_device_information()
+            await asyncio.sleep(1)
         
         logging.info(f" - Weight: {self.weight/1000: .2f}kg")
             

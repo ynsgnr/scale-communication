@@ -19,9 +19,10 @@ There also seem to be some identical scales with a different branding on the mar
 ![scale](https://github.com/sroemer/scale-communication/blob/main/img/crenot_gofit_s2.jpg?raw=true)
 ![packaging](https://github.com/sroemer/scale-communication/blob/main/img/crenot_gofit_s2_box.jpg?raw=true)
 
-## Status of the implementation
+## Versions / Changelog
 
-v0.1: The client is able to get the weight from the scale.
+- v0.1.1: Use asyncio.sleep() instead of dev. info requests to keep notifications incoming
+- v0.1.0: The client is able to get the weight from the scale.
 
 ## Communication and data processing
 
@@ -31,4 +32,3 @@ v0.1: The client is able to get the weight from the scale.
 4. Receive notifications for 'FFB2' and process data:
   - update weight value from bytes 6-8 (18 lowest bits)
   - if byte 4 is 2 stop updating the values (weight got stable) and exit
-
