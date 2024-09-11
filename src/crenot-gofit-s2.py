@@ -14,8 +14,15 @@ class CrenotGofitS2:
     address = None
     client  = None
 
+    print_dev_info = True
+    print_svc_info = True
+
     is_weight_stable = False
     weight           = 0 # in grams
+
+    def __init__(self, d, s):
+        self.print_dev_info = d
+        self.print_svc_info = s
 
     async def run(self):
         name = "Crenot Gofit S2"
@@ -25,8 +32,10 @@ class CrenotGofitS2:
             
         logging.info(f"Connection to scale '{name}' established")
 
-        # await self.get_device_information()
-        # await self.print_services()
+        if self.print_dev_info:
+            await self.get_device_information()
+        if self.print_svc_info:
+            await self.print_services()
         
         await self.start_notification("FFB2")
         # await self.start_notification("FFB3")
@@ -79,7 +88,7 @@ class CrenotGofitS2:
     ###
     async def get_device_information(self):
 
-        # logging.info("Gathering device information")
+        logging.info("Gathering device information")
         device_info = { "system id"    : "2A23",
                         "model number" : "2A24",
                         "serial number": "2A25",
@@ -91,10 +100,10 @@ class CrenotGofitS2:
         for type, uuid in device_info.items():
             try:
                 value = await self.client.read_gatt_char(uuid)
-                #logging.info(f" - {type: <16s}: '{value.decode("utf-8", "backslashreplace")}'")
+                logging.info( f" - {type: <16s}: {value.decode('utf-8', 'backslashreplace')}" )
             except Exception as e:
                 pass
-                #logging.error(f" - {type: <16s}: failed")
+                logging.error( f" - {type: <16s}: failed" )
 
     ###
     # print_services()
@@ -122,6 +131,8 @@ class CrenotGofitS2:
     async def notify_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
         logging.debug(f" - received data {data.hex()}")
         if not self.is_weight_stable:
+            # weight is stored in bytes 6, 7 and 8 but only 2 bits of byte 6 are used
+            # therefore we extract the value by binary or operation 262143
             self.weight = int.from_bytes([ data[6], data[7], data[8] ]) & 262143
             if data[4] == 2:
                 self.is_weight_stable = True
@@ -131,4 +142,4 @@ class CrenotGofitS2:
 # Execute when the not initialized from an import statement.
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format=" - %(levelname)s \t%(message)s")
-    asyncio.run(CrenotGofitS2().run())    
+    asyncio.run(CrenotGofitS2(True, False).run())    
