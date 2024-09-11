@@ -25,7 +25,7 @@ class CrenotGofitS2:
             
         logging.info(f"Connection to scale '{name}' established")
 
-        await self.get_device_information()
+        # await self.get_device_information()
         # await self.print_services()
         
         await self.start_notification("FFB2")

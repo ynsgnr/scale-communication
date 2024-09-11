@@ -19,7 +19,16 @@ There also seem to be some identical scales with a different branding on the mar
 ![scale](https://github.com/sroemer/scale-communication/blob/main/img/crenot_gofit_s2.jpg?raw=true)
 ![packaging](https://github.com/sroemer/scale-communication/blob/main/img/crenot_gofit_s2_box.jpg?raw=true)
 
-## Status
+## Status of the implementation
 
-Currently the code only discovers available BLE devices and connects to a device
-with the name "Crenot Gofit S2" (if available).
+v0.1: The client is able to get the weight from the scale.
+
+## Communication and data processing
+
+1. Discover BLE devices
+2. Connect to scale
+3. Activate notifications/indications on characteristic 'FFB2'
+4. Receive notifications for 'FFB2' and process data:
+  - update weight value from bytes 6-8 (18 lowest bits)
+  - if byte 4 is 2 stop updating the values (weight got stable) and exit
+
