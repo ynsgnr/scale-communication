@@ -1,7 +1,7 @@
 #!/bin/env python3
 import asyncio
 import logging
-from bleak import BleakClient, BleakScanner
+from bleak import BleakClient, BleakScanner, BleakGATTCharacteristic
 
 
 
@@ -12,7 +12,10 @@ from bleak import BleakClient, BleakScanner
 class CrenotGofitS2:
 
     address = None
-    client = None
+    client  = None
+
+    is_weight_stable = False
+    weight           = 0 # in grams
 
     async def run(self):
         name = "Crenot Gofit S2"
@@ -21,9 +24,21 @@ class CrenotGofitS2:
             return False
             
         logging.info(f"Connection to scale '{name}' established")
-        await self.get_device_information()
-        await self.print_services()
 
+        await self.get_device_information()
+        # await self.print_services()
+        
+        await self.start_notification("FFB2")
+        # await self.start_notification("FFB3")
+        # await self.start_notification("2A05")
+
+        logging.info("Waiting for weight to stabilize")
+        while not self.is_weight_stable:
+            logging.debug(f"weight:{self.weight}")
+            await self.get_device_information()
+        
+        logging.info(f" - Weight: {self.weight/1000: .2f}kg")
+            
     ###
     # connect()
     #  - discover ble devices
@@ -64,7 +79,7 @@ class CrenotGofitS2:
     ###
     async def get_device_information(self):
 
-        logging.info("Gathering device information")
+        # logging.info("Gathering device information")
         device_info = { "system id"    : "2A23",
                         "model number" : "2A24",
                         "serial number": "2A25",
@@ -76,9 +91,10 @@ class CrenotGofitS2:
         for type, uuid in device_info.items():
             try:
                 value = await self.client.read_gatt_char(uuid)
-                logging.info(f" - {type: <16s}: '{value.decode("utf-8", "backslashreplace")}'")
+                #logging.info(f" - {type: <16s}: '{value.decode("utf-8", "backslashreplace")}'")
             except Exception as e:
-                logging.error(f" - {type: <16s}: failed")
+                pass
+                #logging.error(f" - {type: <16s}: failed")
 
     ###
     # print_services()
@@ -90,11 +106,29 @@ class CrenotGofitS2:
         for s in self.client.services:
             logging.info(f" - {s.uuid: <36s}: {s.description}")
 
+    ###
+    # start_notification()
+    #  - triggers the scale to send notification/indication messages for the given uuid
+    ###
+    async def start_notification(self, uuid):
+        
+        logging.info(f"Starting notifications for uuid {uuid}")
+        await self.client.start_notify(uuid, self.notify_callback)
 
+    ###
+    # notify_callback()
+    #  - called when notification/indication message is received
+    ###
+    async def notify_callback(self, sender: BleakGATTCharacteristic, data: bytearray):
+        logging.debug(f" - received data {data.hex()}")
+        if not self.is_weight_stable:
+            self.weight = int.from_bytes([ data[6], data[7], data[8] ]) & 262143
+            if data[4] == 2:
+                self.is_weight_stable = True
 
 
 
 # Execute when the not initialized from an import statement.
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format=" - %(levelname)s \t%(message)s")
-    asyncio.run(CrenotGofitS2().run())
+    asyncio.run(CrenotGofitS2().run())    
