@@ -21,6 +21,7 @@ There also seem to be some identical scales with a different branding on the mar
 
 ## Versions / Changelog
 
+- v0.2.0: Wait for weight to stabilize with a timeout and add command line arguments
 - v0.1.1: Use asyncio.sleep() instead of dev. info requests to keep notifications incoming
 - v0.1.0: The client is able to get the weight from the scale.
 
