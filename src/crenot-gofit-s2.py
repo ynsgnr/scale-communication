@@ -19,10 +19,14 @@ class CrenotGofitS2:
     print_svc_info = False
 
     is_weight_stable = False
-    wait_stable_timeout = 10
-    weight           = 0 # in grams
+    wait_stable_timeout = 15
+    weight_stable = 0 # in grams
 
-    def __init__(self, print_dev_info=False, print_svc_info=False, timeout=10):
+    is_weight_bia = False
+    wait_bia_timeout = 15
+    weight_bia = 0 # in grams
+
+    def __init__(self, print_dev_info=False, print_svc_info=False, timeout=15):
         self.print_dev_info = print_dev_info
         self.print_svc_info = print_svc_info
         self.wait_stable_timeout = timeout
@@ -41,23 +45,45 @@ class CrenotGofitS2:
             await self.print_services()
         
         await self.start_notification("FFB2", self.on_ffb2_notification)
-        # await self.start_notification("FFB3", self.on_ffb3_notification)
+        await self.start_notification("FFB3", self.on_ffb3_notification)
         # await self.start_notification("2A05", self.on_2a05_notification)
 
-        logging.info(f"Waiting for weight to stabilize (timeout:{self.wait_stable_timeout}s)" )
-
+        logging.info(f"Waiting for weight measurement (uuid:ffb2 timeout:{self.wait_stable_timeout}s)" )
         try:
             async with asyncio.timeout(self.wait_stable_timeout):
                 while not self.is_weight_stable:
-                    logging.debug(f"weight:{self.weight}")
+                    logging.debug(f"weight:{self.weight_stable}")
                     await asyncio.sleep(1)
-                logging.info(f" - Weight: {self.weight/1000: .2f}kg")
+                logging.debug(f" - Stable weight: {self.weight_stable/1000: .2f}kg")
         except asyncio.TimeoutError:
-            logging.error(f" - Timeout (Last weight: {self.weight/1000: .2f}kg)")
+            logging.error(f" - Weight measurement timeout (Last weight: {self.weight_stable/1000: .2f}kg)")
         except asyncio.CancelledError:
-            logging.error(f" - Cancelled (Last weight: {self.weight/1000: .2f}kg)")
+            logging.error(f" - Waiting for weight measurement cancelled (Last weight: {self.weight_stable/1000: .2f}kg)")
         except Exception as e:    
             logging.error("Waiting for stable weight failed with exception", e)
+
+        if self.is_weight_stable:
+            logging.info(f"Waiting for BIA (uuid:ffb3 timeout:{self.wait_stable_timeout}s)" )
+            try:
+                async with asyncio.timeout(self.wait_stable_timeout):
+                    while not self.is_weight_bia:
+                        logging.debug(f"weight:{self.weight_bia}")
+                        await asyncio.sleep(1)
+                    logging.debug(f" - BIA weight: {self.weight_bia/1000: .2f}kg")
+            except asyncio.TimeoutError:
+                logging.error(f" - BIA timeout (Unconfirmed weight: {self.weight_stable/1000: .2f}kg)")
+            except asyncio.CancelledError:
+                logging.error(f" - Waiting for BIA cancelled (Unconfirmed weight: {self.weight_stable/1000: .2f}kg)")
+            except Exception as e:    
+                logging.error("Waiting for BIA failed with exception", e)
+
+        # Check for matching weights
+        if self.is_weight_bia:
+            if self.weight_stable == self.weight_bia:
+                logging.info(f" - Weight: {self.weight_bia/1000: .2f}kg")
+            else:
+                logging.warn(f" - Weight mismatch !!! (stable: {self.weight_stable/1000: .2f}kg bia: {self.weight_bia/1000: .2f}kg)")
+        
             
     ###
     # connect()
@@ -132,24 +158,36 @@ class CrenotGofitS2:
     ###
     async def start_notification(self, uuid, callback):
         
-        logging.info(f"Starting notifications for uuid {uuid}")
+        logging.debug(f"Starting notifications for uuid {uuid}")
         await self.client.start_notify(uuid, callback)
 
     ###
     # on_xxxx_notififaction()
     #  - called when notification/indication message of according uuid is received
+    #    - FFB2 seems to be notified for weight measurement (update displayed weight in app)
+    #    - FFB3 seems to be sent 2 times
+    #         1.) right after enabling it, but for unknown reason and with unknown data
+    #         2.) this seems to correlate with the moment the scale ends BIA and shows
+    #             results, but sadly there is no data regarding those results included.
+    #    - 2A05 is named 'service change' but was not seen yet -> unknown when notified
     ###
     async def on_ffb2_notification(self, sender: BleakGATTCharacteristic, data: bytearray):
         logging.debug(f" - FFB2: received data {data.hex()}")
         if not self.is_weight_stable:
             # weight is stored in bytes 6, 7 and 8 but only 2 bits of byte 6 are used
-            # therefore we extract the value by binary or operation 262143
-            self.weight = int.from_bytes([ data[6], data[7], data[8] ]) & 262143
+            # therefore we extract the value by binary or operation 3FFFF
+            self.weight_stable = int.from_bytes([ data[6], data[7], data[8] ]) & 0x3FFFF
             if data[4] == 2:
                 self.is_weight_stable = True
 
     async def on_ffb3_notification(self, sender: BleakGATTCharacteristic, data: bytearray):
-        logging.info(f" - FFB3: received data {data.hex()}")
+        logging.debug(f" - FFB3: received data {data.hex()}")
+        if not self.is_weight_bia:
+            # weight is stored in bytes 5, 6 and 7 but only 2 bits of byte 5 are used
+            # therefore we extract the value by binary or operation 3FFFF
+            if data[3] == 0xa3:
+                self.weight_bia= int.from_bytes([ data[5], data[6], data[7] ]) & 0x3FFFF
+                self.is_weight_bia= True
 
     async def on_2a05_notification(self, sender: BleakGATTCharacteristic, data: bytearray):
         logging.info(f" - 2A05: received data {data.hex()}")
@@ -163,7 +201,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Client application for 'Crenot Gofit S2' scale")
     parser.add_argument('--print_dev_info', action='store_true', help='enable output of device information')
     parser.add_argument('--print_svc_info', action='store_true', help='enable output of service information')
-    parser.add_argument('--timeout', type=float, default=10, help='timeout when waiting for weight to stabilize')
+    parser.add_argument('--timeout', type=float, default=15, help='timeout when waiting for weight to stabilize')
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format=" - %(levelname)s \t%(message)s")

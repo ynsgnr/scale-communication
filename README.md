@@ -21,6 +21,7 @@ There also seem to be some identical scales with a different branding on the mar
 
 ## Versions / Changelog
 
+- v0.3.0: Wait for BIA and verify that weights from different messages match. No BIA data yet.
 - v0.2.0: Wait for weight to stabilize with a timeout and add command line arguments
 - v0.1.1: Use asyncio.sleep() instead of dev. info requests to keep notifications incoming
 - v0.1.0: The client is able to get the weight from the scale.
@@ -29,7 +30,11 @@ There also seem to be some identical scales with a different branding on the mar
 
 1. Discover BLE devices
 2. Connect to scale
-3. Activate notifications/indications on characteristic 'FFB2'
-4. Receive notifications for 'FFB2' and process data:
+3. Activate notifications/indications on characteristics 'FFB2', 'FFB3'
+4. Receive notifications for 'FFB2' (weight measurement) and process data:
   - update weight value from bytes 6-8 (18 lowest bits)
-  - if byte 4 is 2 stop updating the values (weight got stable) and exit
+  - if byte 4 is 2 stop updating the values (weight got stable)
+5. If stable weight was received, now wait for 'FFB3' indication (sent
+   when BIA is finished but BIA data not found yet) and process data:
+  - if byte 3 is 'a3' save weight value from bytes 5-7 (18 lowest bits)
+6. Verify that weight from 'FFB2' and 'FFB3' messages match
