@@ -55,7 +55,6 @@ class CrenotGofitS2:
         try:
             async with asyncio.timeout(self.wait_stable_timeout):
                 while not self.is_weight_stable:
-                    logger.debug(f"weight:{self.weight_stable}")
                     await asyncio.sleep(1)
                 logger.debug(f" - Stable weight: {self.weight_stable/1000: .2f}kg")
         except asyncio.TimeoutError:
@@ -70,7 +69,6 @@ class CrenotGofitS2:
             try:
                 async with asyncio.timeout(self.wait_stable_timeout):
                     while not self.is_weight_bia:
-                        logger.debug(f"weight:{self.weight_bia}")
                         await asyncio.sleep(1)
                     logger.debug(f" - BIA weight: {self.weight_bia/1000: .2f}kg")
             except asyncio.TimeoutError:
@@ -86,8 +84,8 @@ class CrenotGofitS2:
                 logger.info(f" - Weight: {self.weight_bia/1000: .2f}kg")
             else:
                 logging.warn(f" - Weight mismatch !!! (stable: {self.weight_stable/1000: .2f}kg bia: {self.weight_bia/1000: .2f}kg)")
-        
-            
+
+
     ###
     # connect()
     #  - discover ble devices
@@ -161,7 +159,7 @@ class CrenotGofitS2:
     ###
     async def start_notification(self, uuid, callback):
         
-        logger.debug(f"Starting notifications for uuid {uuid}")
+        logger.debug(f"Enable notifications for uuid {uuid}")
         await self.client.start_notify(uuid, callback)
 
     ###
