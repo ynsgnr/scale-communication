@@ -12,8 +12,9 @@ from bleak import BleakClient, BleakScanner, BleakGATTCharacteristic
 ###
 class CrenotGofitS2:
 
-    address = None
-    client  = None
+    dev_name = None
+    address  = None
+    client   = None
 
     print_dev_info = False
     print_svc_info = False
@@ -26,18 +27,18 @@ class CrenotGofitS2:
     wait_bia_timeout = 15
     weight_bia = 0 # in grams
 
-    def __init__(self, print_dev_info=False, print_svc_info=False, timeout=15):
+    def __init__(self, dev_name, print_dev_info=False, print_svc_info=False, timeout=15):
+        self.dev_name = dev_name
         self.print_dev_info = print_dev_info
         self.print_svc_info = print_svc_info
         self.wait_stable_timeout = timeout
 
     async def run(self):
-        name = "Crenot Gofit S2"
-        if not await self.connect(name):
-            logging.error(f"Could not connect to scale '{name}'")
+        if not await self.connect(self.dev_name):
+            logging.error(f"Could not connect to scale '{self.dev_name}'")
             return False
             
-        logging.info(f"Connection to scale '{name}' established")
+        logging.info(f"Connection to scale '{self.dev_name}' established")
 
         if self.print_dev_info:
             await self.get_device_information()
@@ -199,12 +200,14 @@ if __name__ == '__main__':
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Client application for 'Crenot Gofit S2' scale")
+    parser.add_argument('--dev_name', type=str, default="Crenot Gofit S2", help='name of the device to connect to')
     parser.add_argument('--print_dev_info', action='store_true', help='enable output of device information')
     parser.add_argument('--print_svc_info', action='store_true', help='enable output of service information')
     parser.add_argument('--timeout', type=float, default=15, help='timeout when waiting for weight to stabilize')
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format=" - %(levelname)s \t%(message)s")
-    asyncio.run(CrenotGofitS2(print_dev_info=args.print_dev_info,
+    asyncio.run(CrenotGofitS2(dev_name=args.dev_name,
+                              print_dev_info=args.print_dev_info,
                               print_svc_info=args.print_svc_info,
                               timeout=args.timeout).run())    
